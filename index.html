@@ -1,8 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Agenda ASCM</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background:#f5f5f5;
+}
+
+header {
+    background:#e30613;
+    color:white;
+    text-align:center;
+    padding:20px;
+}
+
+.container {
+    padding:20px;
+}
+
+button, select {
+    padding:8px;
+    margin:5px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+.month {
+    background:white;
+    margin-bottom:15px;
+    padding:10px;
+    border-radius:6px;
+}
+
+@media print {
+    button, select {
+        display:none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Agenda ASCM</h1>
+<select id="annee" onchange="afficher()"></select>
+</header>
+
+<div class="container">
+
+<button onclick="ajouter()">➕ Ajouter</button>
+<button onclick="window.print()">🖨️ Imprimer / PDF</button>
+
+<div id="agenda"></div>
+
+</div>
+
 <script type="module">
 
+// 🔥 FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// 🔑 CONFIG (TON CODE)
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
@@ -18,8 +83,10 @@ const db = getFirestore(app);
 
 let events = [];
 
+// 🔄 CHARGER
 async function charger() {
     events = [];
+
     const snapshot = await getDocs(collection(db, "events"));
 
     snapshot.forEach(d => {
@@ -28,9 +95,11 @@ async function charger() {
         events.push(e);
     });
 
+    initAnnees();
     afficher();
 }
 
+// ➕ AJOUT
 async function ajouter() {
     let date = prompt("Date JJ-MM-AAAA");
     let titre = prompt("Titre");
@@ -41,25 +110,75 @@ async function ajouter() {
     charger();
 }
 
+// 🗑️ SUPPRIMER
 async function supprimer(id) {
+    if (!confirm("Supprimer ?")) return;
+
     await deleteDoc(doc(db, "events", id));
     charger();
 }
 
-function afficher() {
-    let container = document.getElementById("agenda");
-    container.innerHTML = "";
+// 📅 ANNEES
+function initAnnees() {
+    let select = document.getElementById("annee");
+    select.innerHTML = "";
 
-    events.forEach(e => {
-        container.innerHTML += `
-        ${e.date} - ${e.titre}
-        <button onclick="supprimer('${e.id}')">🗑️</button><br>`;
+    let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
+    annees.sort();
+
+    annees.forEach(a => {
+        let opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        select.appendChild(opt);
     });
 }
 
+// 📋 AFFICHAGE
+function afficher() {
+
+    let annee = document.getElementById("annee").value;
+
+    let mois = [
+        "janvier","fevrier","mars","avril","mai","juin",
+        "juillet","aout","septembre","octobre","novembre","decembre"
+    ];
+
+    let container = document.getElementById("agenda");
+    container.innerHTML = "";
+
+    mois.forEach((nom, i) => {
+
+        let div = document.createElement("div");
+        div.className = "month";
+
+        let html = "<h3>" + nom + "</h3>";
+
+        events
+        .filter(e => {
+            let p = e.date.split("-");
+            return p[2] === annee && parseInt(p[1]) === i+1;
+        })
+        .forEach(e => {
+            html += `
+            ${e.date} - ${e.titre}
+            <button onclick="supprimer('${e.id}')">🗑️</button><br>
+            `;
+        });
+
+        div.innerHTML = html;
+        container.appendChild(div);
+    });
+}
+
+// 🔥 INIT
 charger();
 
+// rendre accessible aux boutons
 window.ajouter = ajouter;
 window.supprimer = supprimer;
 
 </script>
+
+</body>
+</html>
