@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Agenda ASCM</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background:#f5f5f5;
+}
+
+header {
+    background:#e30613;
+    color:white;
+    text-align:center;
+    padding:20px;
+}
+
+header img {
+    width:80px;
+    display:block;
+    margin:0 auto 10px;
+}
+
+.container {
+    padding:20px;
+}
+
+button, select {
+    padding:8px;
+    margin:5px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+.add { background:#e30613; color:white; }
+.edit { background:#555; color:white; }
+.delete { background:#999; color:white; }
+
+.month {
+    background:white;
+    margin-bottom:15px;
+    padding:10px;
+    border-radius:6px;
+}
+
+.date {
+    font-weight:bold;
+}
+
+li {
+    display:flex;
+    justify-content:space-between;
+    padding:5px 0;
+}
+
+@media print {
+    button, select, input {
+        display:none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="logo.png">
+<h1>Agenda ASCM</h1>
+<select id="annee" onchange="afficher()"></select>
+</header>
+
+<div class="container">
+
+<button class="add" onclick="ajouter()">➕ Ajouter</button>
+<button onclick="window.print()">🖨️ Imprimer / PDF</button>
+
+<br>
+
+<button onclick="exporter()">💾 Exporter</button>
+<input type="file" onchange="importer(event)">
+
+<div id="agenda"></div>
+
+</div>
+
+<script>
+
+let events = [
+    {date:"10-01-2026", titre:"Réunion équipe"},
+    {date:"25-01-2026", titre:"Événement partenaires"},
+    {date:"14-02-2026", titre:"Soirée spéciale"}
+];
+
+// INIT
+function init() {
+    charger();
+    initAnnees();
+    afficher();
+}
+
+// ANNEES
+function initAnnees() {
+    let select = document.getElementById("annee");
+    select.innerHTML = "";
+
+    let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
+    annees.sort();
+
+    annees.forEach(a => {
+        let opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        select.appendChild(opt);
+    });
+}
+
+// TRI
+function trierEvents() {
+    events.sort((a,b) => {
+        let pa = a.date.split("-");
+        let pb = b.date.split("-");
+        return new Date(pa[2], pa[1]-1, pa[0]) - new Date(pb[2], pb[1]-1, pb[0]);
+    });
+}
+
+// AFFICHAGE
+function afficher() {
+
+    trierEvents();
+
+    let annee = document.getElementById("annee").value;
+
+    let mois = [
+        "janvier","fevrier","mars","avril","mai","juin",
+        "juillet","aout","septembre","octobre","novembre","decembre"
+    ];
+
+    let container = document.getElementById("agenda");
+    container.innerHTML = "";
+
+    mois.forEach((nom, i) => {
+
+        let div = document.createElement("div");
+        div.className = "month";
+
+        let html = "<h3>" + nom + "</h3><ul>";
+
+        events
+        .filter(e => {
+            let p = e.date.split("-");
+            return p[2] === annee && parseInt(p[1]) === i+1;
+        })
+        .forEach(e => {
+            html += `
+            <li>
+                <span><span class='date'>${e.date}</span> - ${e.titre}</span>
+                <span>
+                    <button class="edit" onclick="modifier('${e.date}','${e.titre}')">✏️</button>
+                    <button class="delete" onclick="supprimer('${e.date}','${e.titre}')">🗑️</button>
+                </span>
+            </li>
+            `;
+        });
+
+        html += "</ul>";
+        div.innerHTML = html;
+        container.appendChild(div);
+    });
+}
+
+// AJOUT
+function ajouter() {
+    let date = prompt("Date JJ-MM-AAAA");
+    let titre = prompt("Titre");
+
+    if (!date || !titre) return;
+
+    events.push({date, titre});
+    sauvegarder();
+    initAnnees();
+    afficher();
+}
+
+// MODIFIER
+function modifier(date, titre) {
+
+    let newDate = prompt("Nouvelle date :", date);
+    let newTitre = prompt("Nouveau titre :", titre);
+
+    if (!newDate || !newTitre) return;
+
+    let ev = events.find(e => e.date === date && e.titre === titre);
+
+    if (ev) {
+        ev.date = newDate;
+        ev.titre = newTitre;
+    }
+
+    sauvegarder();
+    initAnnees();
+    afficher();
+}
+
+// SUPPRIMER
+function supprimer(date, titre) {
+    if (!confirm("Supprimer ?")) return;
+
+    events = events.filter(e => !(e.date === date && e.titre === titre));
+
+    sauvegarder();
+    initAnnees();
+    afficher();
+}
+
+// EXPORT JSON
+function exporter() {
+    let data = JSON.stringify(events, null, 2);
+
+    let blob = new Blob([data], {type: "application/json"});
+    let a = document.createElement("a");
+
+    a.href = URL.createObjectURL(blob);
+    a.download = "agenda.json";
+    a.click();
+}
+
+// IMPORT JSON
+function importer(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+
+    reader.onload = function(e) {
+        events = JSON.parse(e.target.result);
+        sauvegarder();
+        initAnnees();
+        afficher();
+    };
+
+    reader.readAsText(file);
+}
+
+// STOCKAGE
+function sauvegarder() {
+    localStorage.setItem("agenda", JSON.stringify(events));
+}
+
+function charger() {
+    let s = localStorage.getItem("agenda");
+    if (s) events = JSON.parse(s);
+}
+
+init();
+
+</script>
+
+</body>
+</html>
