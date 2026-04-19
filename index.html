@@ -5,8 +5,13 @@
 <title>Agenda ASCM</title>
 
 <style>
-body { font-family: Arial; margin:0; background:#f5f5f5; }
+body {
+    font-family: Arial;
+    margin:0;
+    background:#f5f5f5;
+}
 
+/* 🔴 BANNIÈRE */
 header {
     background:#e30613;
     color:white;
@@ -15,26 +20,59 @@ header {
 }
 
 header img {
-    width:80px;
-    display:block;
-    margin:0 auto 10px;
+    width:70px;
+    margin-bottom:10px;
 }
 
-.container { padding:20px; }
+.container {
+    padding:20px;
+    max-width:900px;
+    margin:auto;
+}
 
+/* 🔘 BOUTONS */
 button, select {
-    padding:8px;
+    padding:8px 12px;
     margin:5px;
     border:none;
-    border-radius:4px;
+    border-radius:5px;
     cursor:pointer;
 }
 
+#add { background:#e30613; color:white; }
+.edit { background:#555; color:white; }
+.delete { background:#999; color:white; }
+
+/* 📦 CARTES MOIS */
 .month {
     background:white;
-    margin-bottom:15px;
-    padding:10px;
-    border-radius:6px;
+    margin-bottom:20px;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+.month h3 {
+    margin-top:0;
+    border-bottom:1px solid #eee;
+    padding-bottom:5px;
+}
+
+/* 📋 EVENT */
+.event {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 0;
+    border-bottom:1px solid #eee;
+}
+
+.event:last-child {
+    border-bottom:none;
+}
+
+.date {
+    font-weight:bold;
 }
 </style>
 </head>
@@ -48,12 +86,14 @@ button, select {
 </header>
 
 <div class="container">
+
 <button id="add">➕ Ajouter</button>
 <button onclick="window.print()">🖨️ Export PDF</button>
+
 <div id="agenda"></div>
+
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
@@ -71,9 +111,8 @@ const db = firebase.firestore();
 
 let events = [];
 
-// 🔄 CHARGER LES DONNÉES
+// 🔄 CHARGER
 function charger() {
-
     db.collection("events").get().then(snapshot => {
 
         events = [];
@@ -84,8 +123,6 @@ function charger() {
             events.push(e);
         });
 
-        console.log("EVENTS :", events);
-
         initAnnees();
         afficher();
     });
@@ -93,27 +130,37 @@ function charger() {
 
 // ➕ AJOUT
 document.getElementById("add").onclick = function() {
-
     let date = prompt("Date JJ-MM-AAAA");
     let titre = prompt("Titre");
 
     if (!date || !titre) return;
 
-    db.collection("events").add({date, titre}).then(() => {
-        charger();
-    });
+    db.collection("events").add({date, titre}).then(() => charger());
 };
 
-// 🗑️ SUPPRESSION
+// ✏️ MODIFIER
+function modifier(id, oldDate, oldTitre) {
+
+    let newDate = prompt("Nouvelle date", oldDate);
+    let newTitre = prompt("Nouveau titre", oldTitre);
+
+    if (!newDate || !newTitre) return;
+
+    db.collection("events").doc(id).update({
+        date: newDate,
+        titre: newTitre
+    }).then(() => charger());
+}
+
+// 🗑️ SUPPRIMER
 function supprimer(id) {
-    db.collection("events").doc(id).delete().then(() => {
-        charger();
-    });
+    if (!confirm("Supprimer ?")) return;
+
+    db.collection("events").doc(id).delete().then(() => charger());
 }
 
 // 📅 ANNEES
 function initAnnees() {
-
     let select = document.getElementById("annee");
     select.innerHTML = "";
 
@@ -130,9 +177,7 @@ function initAnnees() {
         select.appendChild(opt);
     });
 
-    // 🔥 sélection automatique dernière année
     select.value = annees[annees.length - 1];
-
     select.onchange = afficher;
 }
 
@@ -156,14 +201,12 @@ function afficher() {
 
         let html = "<h3>" + nom + "</h3>";
 
-        let evs = events.filter(e => {
-            if (!e.date) return false;
-
+        let evs = events
+        .filter(e => {
             let p = e.date.split("-");
-            if (p.length !== 3) return false;
-
             return p[2] === annee && parseInt(p[1]) === i+1;
-        });
+        })
+        .sort((a,b) => a.date.localeCompare(b.date));
 
         if (evs.length === 0) {
             html += "<i>Aucun événement</i>";
@@ -171,8 +214,13 @@ function afficher() {
 
         evs.forEach(e => {
             html += `
-            ${e.date} - ${e.titre}
-            <button onclick="supprimer('${e.id}')">🗑️</button><br>
+            <div class="event">
+                <span><span class="date">${e.date}</span> - ${e.titre}</span>
+                <span>
+                    <button class="edit" onclick="modifier('${e.id}','${e.date}','${e.titre}')">✏️</button>
+                    <button class="delete" onclick="supprimer('${e.id}')">🗑️</button>
+                </span>
+            </div>
             `;
         });
 
