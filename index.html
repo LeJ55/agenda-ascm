@@ -140,6 +140,7 @@ button, select, input {
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
+<!-- FullCalendar -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
 <script>
@@ -197,7 +198,7 @@ function chargerEvents() {
 // 🔍 filtre
 function afficherEvents() {
 
-    let f = filtre.value;
+    let f = document.getElementById("filtre").value;
 
     let events = allEvents.filter(e => {
         if (f === "all") return true;
@@ -211,45 +212,48 @@ function afficherEvents() {
 // 🪟 popup
 function openModal(date=null, event=null) {
 
-    modal.style.display = "block";
+    document.getElementById("modal").style.display = "block";
 
     if (event) {
         selectedId = event.id;
-        deleteBtn.style.display = "block";
+        document.getElementById("deleteBtn").style.display = "block";
 
         let d = new Date(event.start);
 
-        dateEvent.value = d.toISOString().split("T")[0];
-        titre.value = event.title;
-        type.value = event.extendedProps.type;
+        document.getElementById("dateEvent").value = d.toISOString().split("T")[0];
+        document.getElementById("titre").value = event.title;
+        document.getElementById("type").value = event.extendedProps.type;
 
     } else {
         selectedId = null;
-        deleteBtn.style.display = "none";
+        document.getElementById("deleteBtn").style.display = "none";
 
-        dateEvent.value = date || new Date().toISOString().split("T")[0];
-        titre.value = "";
+        document.getElementById("dateEvent").value = date || new Date().toISOString().split("T")[0];
+        document.getElementById("titre").value = "";
     }
 
-    heureDebut.value = "18:00";
-    heureFin.value = "19:00";
+    document.getElementById("heureDebut").value = "18:00";
+    document.getElementById("heureFin").value = "19:00";
 }
 
 function closeModal() {
-    modal.style.display = "none";
+    document.getElementById("modal").style.display = "none";
 }
 
 // 💾 save
 function saveEvent() {
 
-    let dateFR = dateEvent.value.split("-").reverse().join("-");
+    let dateISO = document.getElementById("dateEvent").value;
+    if (!dateISO) return;
+
+    let dateFR = dateISO.split("-").reverse().join("-");
 
     let data = {
         date: dateFR,
-        titre: titre.value,
-        heureDebut: heureDebut.value,
-        heureFin: heureFin.value,
-        type: type.value
+        titre: document.getElementById("titre").value,
+        heureDebut: document.getElementById("heureDebut").value,
+        heureFin: document.getElementById("heureFin").value,
+        type: document.getElementById("type").value
     };
 
     if (selectedId) {
@@ -266,7 +270,7 @@ function deleteEvent() {
 
     if (!selectedId) return;
 
-    if (!confirm("Supprimer ?")) return;
+    if (!confirm("Supprimer cet événement ?")) return;
 
     db.collection("events").doc(selectedId).delete()
     .then(() => { closeModal(); chargerEvents(); });
@@ -275,9 +279,11 @@ function deleteEvent() {
 // INIT
 document.addEventListener('DOMContentLoaded', function() {
 
+    let calendarEl = document.getElementById('calendar');
+
     calendar = new FullCalendar.Calendar(calendarEl, {
 
-        initialView: window.innerWidth < 768 ? 'listWeek' : 'multiMonthYear',
+        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
 
         locale: 'fr',
         firstDay: 1,
@@ -296,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
     calendar.render();
     chargerEvents();
 
-    filtre.addEventListener("change", afficherEvents);
+    document.getElementById("filtre").addEventListener("change", afficherEvents);
 });
 
 </script>
