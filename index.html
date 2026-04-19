@@ -6,110 +6,87 @@
 
 <style>
 body { font-family: Arial; margin:0; background:#f5f5f5; }
-
-header {
-    background:#e30613;
-    color:white;
-    text-align:center;
-    padding:20px;
-}
-
-header img {
-    width:80px;
-    display:block;
-    margin:0 auto 10px;
-}
-
+header { background:#e30613; color:white; text-align:center; padding:20px; }
 .container { padding:20px; }
-
-button, select {
-    padding:8px;
-    margin:5px;
-    border:none;
-    border-radius:4px;
-    cursor:pointer;
-}
-
-.month {
-    background:white;
-    margin-bottom:15px;
-    padding:10px;
-    border-radius:6px;
-}
+button, select { padding:8px; margin:5px; }
+.month { background:white; margin-bottom:15px; padding:10px; }
 </style>
 </head>
 
 <body>
 
 <header>
-<img src="logo.png">
 <h1>Agenda ASCM</h1>
 <select id="annee"></select>
 </header>
 
 <div class="container">
 
-<button id="btnAdd">➕ Ajouter</button>
-<button id="btnPrint">🖨️ Imprimer / PDF</button>
+<button id="add">➕ Ajouter</button>
+<button onclick="window.print()">🖨️ PDF</button>
 
 <div id="agenda"></div>
 
 </div>
 
-<script type="module">
+<!-- 🔥 FIREBASE VERSION SIMPLE -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script>
 
+// 🔑 CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
-  projectId: "agenda-ascm",
+  projectId: "agenda-ascm"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// INIT
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 let events = [];
 
 // 🔄 CHARGER
-async function charger() {
+function charger() {
     events = [];
 
-    const snapshot = await getDocs(collection(db, "events"));
+    db.collection("events").get().then(snapshot => {
 
-    snapshot.forEach(d => {
-        let e = d.data();
-        e.id = d.id;
-        events.push(e);
+        snapshot.forEach(doc => {
+            let e = doc.data();
+            e.id = doc.id;
+            events.push(e);
+        });
+
+        initAnnees();
+        afficher();
     });
-
-    initAnnees();
-    afficher();
 }
 
 // ➕ AJOUT
-async function ajouterEvent() {
+document.getElementById("add").onclick = function() {
     let date = prompt("Date JJ-MM-AAAA");
     let titre = prompt("Titre");
 
     if (!date || !titre) return;
 
-    await addDoc(collection(db, "events"), {date, titre});
-    await charger();
-}
+    db.collection("events").add({date, titre}).then(() => {
+        charger();
+    });
+};
 
-// 🗑️ SUPPRESSION
-async function supprimerEvent(id) {
-    if (!confirm("Supprimer ?")) return;
-
-    await deleteDoc(doc(db, "events", id));
-    await charger();
+// 🗑️ SUPPRIMER
+function supprimer(id) {
+    db.collection("events").doc(id).delete().then(() => {
+        charger();
+    });
 }
 
 // 📅 ANNEES
 function initAnnees() {
-    const select = document.getElementById("annee");
+    let select = document.getElementById("annee");
     select.innerHTML = "";
 
     let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
@@ -133,14 +110,14 @@ function initAnnees() {
 // 📋 AFFICHAGE
 function afficher() {
 
-    const annee = document.getElementById("annee").value;
+    let annee = document.getElementById("annee").value;
 
-    const mois = [
+    let mois = [
         "janvier","fevrier","mars","avril","mai","juin",
         "juillet","aout","septembre","octobre","novembre","decembre"
     ];
 
-    const container = document.getElementById("agenda");
+    let container = document.getElementById("agenda");
     container.innerHTML = "";
 
     mois.forEach((nom, i) => {
@@ -162,25 +139,14 @@ function afficher() {
         evs.forEach(e => {
             html += `
             ${e.date} - ${e.titre}
-            <button class="delete" data-id="${e.id}">🗑️</button><br>
+            <button onclick="supprimer('${e.id}')">🗑️</button><br>
             `;
         });
 
         div.innerHTML = html;
         container.appendChild(div);
     });
-
-    // 🔥 gestion suppression après affichage
-    document.querySelectorAll(".delete").forEach(btn => {
-        btn.addEventListener("click", () => {
-            supprimerEvent(btn.dataset.id);
-        });
-    });
 }
-
-// 🔘 BOUTONS
-document.getElementById("btnAdd").addEventListener("click", ajouterEvent);
-document.getElementById("btnPrint").addEventListener("click", () => window.print());
 
 // INIT
 charger();
