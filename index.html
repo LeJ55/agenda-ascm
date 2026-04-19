@@ -1,9 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda ASCM</title>
+
+<style>
+body { font-family: Arial; margin:0; background:#f5f5f5; }
+
+header {
+    background:#e30613;
+    color:white;
+    text-align:center;
+    padding:15px;
+}
+
+header img { width:60px; }
+
+.controls {
+    text-align:center;
+    padding:10px;
+}
+
+button, select, input, textarea {
+    padding:10px;
+    margin:5px;
+    font-size:16px;
+    border-radius:6px;
+    width:90%;
+    max-width:300px;
+}
+
+.create-btn {
+    background:#e30613;
+    color:white;
+}
+
+#list {
+    max-width:600px;
+    margin:20px auto;
+}
+
+.month {
+    margin-top:20px;
+    font-size:20px;
+    font-weight:bold;
+}
+
+.event {
+    background:white;
+    padding:15px;
+    margin:10px 0;
+    border-radius:8px;
+}
+
+.reunion { border-left:5px solid #28a745; }
+.match { border-left:5px solid #007bff; }
+.evenement { border-left:5px solid #fd7e14; }
+
+.event-top {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+/* popup */
+.modal {
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:white;
+    z-index:9999;
+    overflow:auto;
+}
+
+.modal-content { padding:20px; }
+
+textarea { height:80px; }
+
+@media (min-width:768px) {
+    .modal {
+        background:rgba(0,0,0,0.5);
+        display:none;
+        justify-content:center;
+        align-items:center;
+    }
+    .modal-content {
+        background:white;
+        border-radius:8px;
+        width:350px;
+        margin:auto;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="logo.png">
+<h1>Agenda ASCM</h1>
+<button onclick="window.print()">🖨️ PDF</button>
+</header>
+
+<div class="controls">
+
+<button class="create-btn" onclick="openModal()">➕ Créer un événement</button>
+
+<br>
+
+<select id="filtre">
+    <option value="all">Tout</option>
+    <option value="reunion">Réunions</option>
+    <option value="match">Matchs</option>
+    <option value="evenement">Événements</option>
+</select>
+
+</div>
+
+<div id="list"></div>
+
+<!-- POPUP -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+
+        <h3>Événement</h3>
+
+        <label>Début</label>
+        <input type="date" id="dateDebut">
+
+        <label>Fin</label>
+        <input type="date" id="dateFin">
+
+        <input type="text" id="titre" placeholder="Titre">
+
+        <input type="text" id="lieu" placeholder="Lieu (facultatif)">
+
+        <textarea id="description" placeholder="Description (facultatif)"></textarea>
+
+        <select id="type">
+            <option value="reunion">Réunion</option>
+            <option value="match">Match</option>
+            <option value="evenement">Événement</option>
+        </select>
+
+        <button onclick="saveEvent()">💾 Enregistrer</button>
+
+        <button onclick="deleteEvent()" id="deleteBtn"
+        style="display:none;background:#dc3545;color:white;">
+        🗑️ Supprimer
+        </button>
+
+        <button onclick="closeModal()">❌ Fermer</button>
+
+    </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
 <script>
 
+// 🔥 CONFIG FIREBASE (TA VRAIE CONFIG)
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
+  apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
-  projectId: "agenda-ascm"
+  projectId: "agenda-ascm",
+  storageBucket: "agenda-ascm.firebasestorage.app",
+  messagingSenderId: "766290554972",
+  appId: "1:766290554972:web:48a84c36a44ea9ce5bb699",
+  measurementId: "G-5VM9QEQ29V"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -26,7 +194,7 @@ function checkCode() {
     return false;
 }
 
-// 🔄 charger
+// 🔄 CHARGER
 function chargerEvents() {
 
     db.collection("events").get().then(snapshot => {
@@ -49,7 +217,7 @@ function chargerEvents() {
     });
 }
 
-// 🔍 afficher
+// 🔍 AFFICHER
 function afficherEvents() {
 
     let list = document.getElementById("list");
@@ -105,14 +273,14 @@ function afficherEvents() {
     });
 }
 
-// 📅 mois
+// 📅 FORMAT MOIS
 function formatMonth(m) {
     let [mois, an] = m.split("-");
     const noms = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
     return noms[parseInt(mois)-1] + " " + an;
 }
 
-// 🪟 popup
+// 🪟 MODAL
 function openModal(event=null) {
 
     if (!checkCode()) {
@@ -151,13 +319,13 @@ function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
-// ✏️ edit
+// ✏️ EDIT
 function editEvent(id) {
     let e = allEvents.find(ev => ev.id === id);
     openModal(e);
 }
 
-// 💾 save
+// 💾 SAVE
 function saveEvent() {
 
     if (!checkCode()) return;
@@ -183,7 +351,7 @@ function saveEvent() {
     }
 }
 
-// 🗑️ delete
+// 🗑️ DELETE
 function deleteEvent() {
 
     if (!checkCode()) return;
@@ -201,3 +369,6 @@ chargerEvents();
 document.getElementById("filtre").addEventListener("change", afficherEvents);
 
 </script>
+
+</body>
+</html>
