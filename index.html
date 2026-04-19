@@ -77,9 +77,7 @@ button, select {
 
 <div class="controls">
 
-<button onclick="openModal(new Date().toISOString().split('T')[0])">
-➕ Créer un événement
-</button>
+<button onclick="openModal()">➕ Créer un événement</button>
 
 Filtrer :
 <select id="filtre">
@@ -98,6 +96,9 @@ Filtrer :
     <div class="modal-content">
 
         <h3>Événement</h3>
+
+        <label>Date</label>
+        <input type="date" id="dateEvent">
 
         <input type="text" id="titre" placeholder="Titre">
 
@@ -129,7 +130,7 @@ Filtrer :
 <script>
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
+  apiKey: "AIzaSy...",
   authDomain: "agenda-ascm.firebaseapp.com",
   projectId: "agenda-ascm"
 };
@@ -138,24 +139,23 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let calendar;
-let selectedDate = null;
 let selectedId = null;
 let allEvents = [];
 
-// couleurs
+// 🎨 couleurs
 function getColor(type) {
     if (type === "reunion") return "#28a745";
     if (type === "match") return "#007bff";
     if (type === "evenement") return "#fd7e14";
 }
 
-// format
+// 🔄 format
 function toISO(date, heure) {
     let p = date.split("-");
     return `${p[2]}-${p[1]}-${p[0]}T${heure}`;
 }
 
-// charger
+// 🔄 charger
 function chargerEvents() {
 
     db.collection("events").get().then(snapshot => {
@@ -179,7 +179,7 @@ function chargerEvents() {
     });
 }
 
-// filtre
+// 🔍 filtre
 function afficherEvents() {
 
     let filtre = document.getElementById("filtre").value;
@@ -193,35 +193,50 @@ function afficherEvents() {
     calendar.addEventSource(events);
 }
 
-// popup
-function openModal(date, event=null) {
+// 🪟 popup
+function openModal(date=null, event=null) {
 
     document.getElementById("modal").style.display = "flex";
 
-    selectedDate = date;
-    selectedId = event ? event.id : null;
+    if (event) {
+        selectedId = event.id;
 
-    document.getElementById("titre").value = event ? event.title : "";
+        let d = new Date(event.start);
+        let yyyy = d.getFullYear();
+        let mm = String(d.getMonth()+1).padStart(2,'0');
+        let dd = String(d.getDate()).padStart(2,'0');
+
+        document.getElementById("dateEvent").value = `${yyyy}-${mm}-${dd}`;
+        document.getElementById("titre").value = event.title;
+        document.getElementById("type").value = event.extendedProps.type;
+
+    } else {
+        selectedId = null;
+        document.getElementById("dateEvent").value = date || new Date().toISOString().split("T")[0];
+        document.getElementById("titre").value = "";
+        document.getElementById("type").value = "reunion";
+    }
+
     document.getElementById("heureDebut").value = "18:00";
     document.getElementById("heureFin").value = "19:00";
-    document.getElementById("type").value = event ? event.extendedProps.type : "reunion";
 }
 
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
-// sauvegarde
+// 💾 sauvegarde
 function saveEvent() {
 
     let titre = document.getElementById("titre").value;
     let heureDebut = document.getElementById("heureDebut").value;
     let heureFin = document.getElementById("heureFin").value;
     let type = document.getElementById("type").value;
+    let dateISO = document.getElementById("dateEvent").value;
 
-    if (!titre) return;
+    if (!titre || !dateISO) return;
 
-    let dateFR = selectedDate.split("-").reverse().join("-");
+    let dateFR = dateISO.split("-").reverse().join("-");
 
     if (selectedId) {
         db.collection("events").doc(selectedId).update({
@@ -248,7 +263,7 @@ function saveEvent() {
     }
 }
 
-// init
+// INIT
 document.addEventListener('DOMContentLoaded', function() {
 
     let calendarEl = document.getElementById('calendar');
@@ -256,7 +271,6 @@ document.addEventListener('DOMContentLoaded', function() {
     calendar = new FullCalendar.Calendar(calendarEl, {
 
         initialView: 'multiMonthYear',
-
         locale: 'fr',
         firstDay: 1,
         initialDate: new Date(),
