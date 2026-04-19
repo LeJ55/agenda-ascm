@@ -265,8 +265,7 @@ function afficherEvents() {
                     ${e.lieu ? `<br>📍 ${e.lieu}` : ""}
                     ${e.description ? `<br><small>${e.description}</small>` : ""}
                 </div>
-                <button onclick="editEvent('${e.id}')">✏️</button>
-            </div>
+               <button class="edit-btn" onclick="editEvent('${e.id}')">✏️</button>
         `;
 
         list.appendChild(div);
