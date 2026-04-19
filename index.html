@@ -174,6 +174,13 @@ function chargerEvents() {
 
         snapshot.forEach(doc => {
             let e = doc.data();
+
+            // 🔥 COMPATIBILITÉ ANCIEN FORMAT
+            if (!e.dateDebut) {
+                e.dateDebut = e.date;
+                e.dateFin = e.date;
+            }
+
             e.id = doc.id;
             allEvents.push(e);
         });
@@ -202,7 +209,8 @@ function afficherEvents() {
 
     events.forEach(e => {
 
-        let mois = e.dateDebut.split("-")[1] + "-" + e.dateDebut.split("-")[2];
+        let parts = e.dateDebut.split("-");
+        let mois = parts[1] + "-" + parts[2];
 
         if (mois !== currentMonth) {
             currentMonth = mois;
@@ -243,31 +251,31 @@ function formatMonth(m) {
 // 🪟 popup
 function openModal(event=null) {
 
-    modal.style.display = "block";
+    document.getElementById("modal").style.display = "block";
 
     if (event) {
         selectedId = event.id;
-        deleteBtn.style.display = "block";
+        document.getElementById("deleteBtn").style.display = "block";
 
-        dateDebut.value = event.dateDebut.split("-").reverse().join("-");
-        dateFin.value = event.dateFin.split("-").reverse().join("-");
-        titre.value = event.titre;
-        type.value = event.type;
+        document.getElementById("dateDebut").value = event.dateDebut.split("-").reverse().join("-");
+        document.getElementById("dateFin").value = (event.dateFin || event.dateDebut).split("-").reverse().join("-");
+        document.getElementById("titre").value = event.titre;
+        document.getElementById("type").value = event.type;
 
     } else {
         selectedId = null;
-        deleteBtn.style.display = "none";
+        document.getElementById("deleteBtn").style.display = "none";
 
         let today = new Date().toISOString().split("T")[0];
 
-        dateDebut.value = today;
-        dateFin.value = today;
-        titre.value = "";
+        document.getElementById("dateDebut").value = today;
+        document.getElementById("dateFin").value = today;
+        document.getElementById("titre").value = "";
     }
 }
 
 function closeModal() {
-    modal.style.display = "none";
+    document.getElementById("modal").style.display = "none";
 }
 
 // ✏️ edit
@@ -279,14 +287,16 @@ function editEvent(id) {
 // 💾 save
 function saveEvent() {
 
-    let d1 = dateDebut.value.split("-").reverse().join("-");
-    let d2 = dateFin.value.split("-").reverse().join("-");
+    let d1 = document.getElementById("dateDebut").value;
+    let d2 = document.getElementById("dateFin").value;
+
+    if (!d1) return;
 
     let data = {
-        dateDebut: d1,
-        dateFin: d2,
-        titre: titre.value,
-        type: type.value
+        dateDebut: d1.split("-").reverse().join("-"),
+        dateFin: d2.split("-").reverse().join("-"),
+        titre: document.getElementById("titre").value,
+        type: document.getElementById("type").value
     };
 
     if (selectedId) {
