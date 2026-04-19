@@ -5,11 +5,7 @@
 <title>Agenda ASCM</title>
 
 <style>
-body {
-    font-family: Arial;
-    margin:0;
-    background:#f5f5f5;
-}
+body { font-family: Arial; margin:0; background:#f5f5f5; }
 
 header {
     background:#e30613;
@@ -24,9 +20,7 @@ header img {
     margin:0 auto 10px;
 }
 
-.container {
-    padding:20px;
-}
+.container { padding:20px; }
 
 button, select {
     padding:8px;
@@ -42,12 +36,6 @@ button, select {
     padding:10px;
     border-radius:6px;
 }
-
-@media print {
-    button, select {
-        display:none;
-    }
-}
 </style>
 </head>
 
@@ -56,13 +44,13 @@ button, select {
 <header>
 <img src="logo.png">
 <h1>Agenda ASCM</h1>
-<select id="annee" onchange="afficher()"></select>
+<select id="annee"></select>
 </header>
 
 <div class="container">
 
-<button onclick="ajouterEvent()">➕ Ajouter</button>
-<button onclick="window.print()">🖨️ Imprimer / PDF</button>
+<button id="btnAdd">➕ Ajouter</button>
+<button id="btnPrint">🖨️ Imprimer / PDF</button>
 
 <div id="agenda"></div>
 
@@ -73,7 +61,6 @@ button, select {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// 🔑 CONFIG FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
@@ -85,7 +72,7 @@ const db = getFirestore(app);
 
 let events = [];
 
-// 🔄 CHARGER LES DONNÉES
+// 🔄 CHARGER
 async function charger() {
     events = [];
 
@@ -120,9 +107,9 @@ async function supprimerEvent(id) {
     await charger();
 }
 
-// 📅 GESTION DES ANNÉES
+// 📅 ANNEES
 function initAnnees() {
-    let select = document.getElementById("annee");
+    const select = document.getElementById("annee");
     select.innerHTML = "";
 
     let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
@@ -139,19 +126,21 @@ function initAnnees() {
     });
 
     select.value = annees[annees.length - 1];
+
+    select.onchange = afficher;
 }
 
 // 📋 AFFICHAGE
 function afficher() {
 
-    let annee = document.getElementById("annee").value;
+    const annee = document.getElementById("annee").value;
 
-    let mois = [
+    const mois = [
         "janvier","fevrier","mars","avril","mai","juin",
         "juillet","aout","septembre","octobre","novembre","decembre"
     ];
 
-    let container = document.getElementById("agenda");
+    const container = document.getElementById("agenda");
     container.innerHTML = "";
 
     mois.forEach((nom, i) => {
@@ -173,20 +162,27 @@ function afficher() {
         evs.forEach(e => {
             html += `
             ${e.date} - ${e.titre}
-            <button onclick="supprimerEvent('${e.id}')">🗑️</button><br>
+            <button class="delete" data-id="${e.id}">🗑️</button><br>
             `;
         });
 
         div.innerHTML = html;
         container.appendChild(div);
     });
+
+    // 🔥 gestion suppression après affichage
+    document.querySelectorAll(".delete").forEach(btn => {
+        btn.addEventListener("click", () => {
+            supprimerEvent(btn.dataset.id);
+        });
+    });
 }
 
-// 🔥 RENDRE ACCESSIBLE AUX BOUTONS
-window.ajouterEvent = ajouterEvent;
-window.supprimerEvent = supprimerEvent;
+// 🔘 BOUTONS
+document.getElementById("btnAdd").addEventListener("click", ajouterEvent);
+document.getElementById("btnPrint").addEventListener("click", () => window.print());
 
-// 🚀 INIT
+// INIT
 charger();
 
 </script>
