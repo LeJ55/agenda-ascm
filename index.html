@@ -4,11 +4,10 @@
 <meta charset="UTF-8">
 <title>Agenda ASCM</title>
 
-<!-- FullCalendar -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 
 <style>
-body { font-family: Arial; margin:0; }
+body { font-family: Arial; margin:0; background:#f5f5f5; }
 
 header {
     background:#e30613;
@@ -17,9 +16,47 @@ header {
     padding:20px;
 }
 
+header img {
+    width:70px;
+    display:block;
+    margin:0 auto 10px;
+}
+
+.controls {
+    text-align:center;
+    margin:10px;
+}
+
 #calendar {
-    max-width:900px;
+    max-width:1000px;
     margin:20px auto;
+    background:white;
+    padding:10px;
+    border-radius:8px;
+}
+
+/* 🪟 POPUP */
+.modal {
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.5);
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content {
+    background:white;
+    padding:20px;
+    border-radius:8px;
+    width:300px;
+}
+
+.modal input, .modal select {
+    width:100%;
+    margin:5px 0;
+    padding:6px;
 }
 </style>
 </head>
@@ -27,11 +64,42 @@ header {
 <body>
 
 <header>
+<img src="logo.png">
 <h1>Agenda ASCM</h1>
 <button onclick="window.print()">🖨️ Export PDF</button>
 </header>
 
+<div class="controls">
+Filtrer :
+<select id="filtre">
+    <option value="all">Tout</option>
+    <option value="reunion">Réunions</option>
+    <option value="match">Matchs</option>
+    <option value="evenement">Événements</option>
+</select>
+</div>
+
 <div id="calendar"></div>
+
+<!-- 🪟 POPUP -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <h3>Événement</h3>
+
+        <input type="text" id="titre" placeholder="Titre">
+
+        <input type="time" id="heure" value="18:00">
+
+        <select id="type">
+            <option value="reunion">Réunion</option>
+            <option value="match">Match</option>
+            <option value="evenement">Événement</option>
+        </select>
+
+        <button onclick="saveEvent()">💾 Enregistrer</button>
+        <button onclick="closeModal()">❌ Annuler</button>
+    </div>
+</div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -42,7 +110,6 @@ header {
 
 <script>
 
-// CONFIG FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
@@ -53,36 +120,112 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let calendar;
+let selectedDate = null;
+let selectedId = null;
+let allEvents = [];
 
-// 🔄 CONVERTIR DATE
-function formatDate(dateStr) {
-    let p = dateStr.split("-");
-    return `${p[2]}-${p[1]}-${p[0]}`; // YYYY-MM-DD
+// 🎨 couleurs
+function getColor(type) {
+    if (type === "reunion") return "#28a745";
+    if (type === "match") return "#007bff";
+    if (type === "evenement") return "#fd7e14";
 }
 
-// 🔄 CHARGER EVENTS
+// 🔄 format
+function toISO(date, heure) {
+    let p = date.split("-");
+    return `${p[2]}-${p[1]}-${p[0]}T${heure}`;
+}
+
+// 🔄 charger
 function chargerEvents() {
 
     db.collection("events").get().then(snapshot => {
 
-        let events = [];
+        allEvents = [];
 
         snapshot.forEach(doc => {
             let e = doc.data();
 
-            events.push({
+            allEvents.push({
                 id: doc.id,
                 title: e.titre,
-                start: formatDate(e.date)
+                start: toISO(e.date, e.heure || "00:00"),
+                type: e.type,
+                backgroundColor: getColor(e.type)
             });
         });
 
-        calendar.removeAllEvents();
-        calendar.addEventSource(events);
+        afficherEvents();
     });
 }
 
-// INIT CALENDAR
+// 🔍 filtre
+function afficherEvents() {
+
+    let filtre = document.getElementById("filtre").value;
+
+    let events = allEvents.filter(e => {
+        if (filtre === "all") return true;
+        return e.type === filtre;
+    });
+
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
+}
+
+// 🪟 ouvrir popup
+function openModal(date, event=null) {
+    document.getElementById("modal").style.display = "flex";
+
+    selectedDate = date;
+    selectedId = event ? event.id : null;
+
+    document.getElementById("titre").value = event ? event.title : "";
+    document.getElementById("heure").value = "18:00";
+    document.getElementById("type").value = event ? event.extendedProps.type : "reunion";
+}
+
+// ❌ fermer
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+}
+
+// 💾 sauvegarder
+function saveEvent() {
+
+    let titre = document.getElementById("titre").value;
+    let heure = document.getElementById("heure").value;
+    let type = document.getElementById("type").value;
+
+    if (!titre) return;
+
+    let dateFR = selectedDate.split("-").reverse().join("-");
+
+    if (selectedId) {
+        db.collection("events").doc(selectedId).update({
+            date: dateFR,
+            heure: heure,
+            titre: titre,
+            type: type
+        }).then(() => {
+            closeModal();
+            chargerEvents();
+        });
+    } else {
+        db.collection("events").add({
+            date: dateFR,
+            heure: heure,
+            titre: titre,
+            type: type
+        }).then(() => {
+            closeModal();
+            chargerEvents();
+        });
+    }
+}
+
+// INIT
 document.addEventListener('DOMContentLoaded', function() {
 
     let calendarEl = document.getElementById('calendar');
@@ -91,39 +234,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         initialView: 'dayGridMonth',
 
+        // 🔥 mois actuel automatique
+        initialDate: new Date(),
+
         locale: 'fr',
 
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: ''
-        },
-
         dateClick: function(info) {
-            let titre = prompt("Titre de l'événement");
-
-            if (!titre) return;
-
-            let date = info.dateStr.split("-").reverse().join("-");
-
-            db.collection("events").add({
-                date: date,
-                titre: titre
-            }).then(() => chargerEvents());
+            openModal(info.dateStr);
         },
 
         eventClick: function(info) {
-
-            if (confirm("Supprimer cet événement ?")) {
-                db.collection("events").doc(info.event.id).delete()
-                .then(() => chargerEvents());
-            }
+            openModal(info.event.startStr, info.event);
         }
 
     });
 
     calendar.render();
     chargerEvents();
+
+    document.getElementById("filtre").addEventListener("change", afficherEvents);
 });
 
 </script>
