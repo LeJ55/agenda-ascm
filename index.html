@@ -4,14 +4,12 @@
 <meta charset="UTF-8">
 <title>Agenda ASCM</title>
 
-<style>
-body {
-    font-family: Arial;
-    margin:0;
-    background:#f5f5f5;
-}
+<!-- FullCalendar -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 
-/* 🔴 BANNIÈRE */
+<style>
+body { font-family: Arial; margin:0; }
+
 header {
     background:#e30613;
     color:white;
@@ -19,60 +17,9 @@ header {
     padding:20px;
 }
 
-header img {
-    width:70px;
-    margin-bottom:10px;
-}
-
-.container {
-    padding:20px;
+#calendar {
     max-width:900px;
-    margin:auto;
-}
-
-/* 🔘 BOUTONS */
-button, select {
-    padding:8px 12px;
-    margin:5px;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-#add { background:#e30613; color:white; }
-.edit { background:#555; color:white; }
-.delete { background:#999; color:white; }
-
-/* 📦 CARTES MOIS */
-.month {
-    background:white;
-    margin-bottom:20px;
-    padding:15px;
-    border-radius:8px;
-    box-shadow:0 2px 5px rgba(0,0,0,0.1);
-}
-
-.month h3 {
-    margin-top:0;
-    border-bottom:1px solid #eee;
-    padding-bottom:5px;
-}
-
-/* 📋 EVENT */
-.event {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:8px 0;
-    border-bottom:1px solid #eee;
-}
-
-.event:last-child {
-    border-bottom:none;
-}
-
-.date {
-    font-weight:bold;
+    margin:20px auto;
 }
 </style>
 </head>
@@ -80,26 +27,22 @@ button, select {
 <body>
 
 <header>
-<img src="logo.png">
 <h1>Agenda ASCM</h1>
-<select id="annee"></select>
+<button onclick="window.print()">🖨️ Export PDF</button>
 </header>
 
-<div class="container">
+<div id="calendar"></div>
 
-<button id="add">➕ Ajouter</button>
-<button onclick="window.print()">🖨️ Export PDF</button>
-
-<div id="agenda"></div>
-
-</div>
-
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
+<!-- FullCalendar -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
 <script>
 
-// CONFIG
+// CONFIG FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
@@ -109,128 +52,79 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let events = [];
+let calendar;
 
-// 🔄 CHARGER
-function charger() {
+// 🔄 CONVERTIR DATE
+function formatDate(dateStr) {
+    let p = dateStr.split("-");
+    return `${p[2]}-${p[1]}-${p[0]}`; // YYYY-MM-DD
+}
+
+// 🔄 CHARGER EVENTS
+function chargerEvents() {
+
     db.collection("events").get().then(snapshot => {
 
-        events = [];
+        let events = [];
 
         snapshot.forEach(doc => {
             let e = doc.data();
-            e.id = doc.id;
-            events.push(e);
+
+            events.push({
+                id: doc.id,
+                title: e.titre,
+                start: formatDate(e.date)
+            });
         });
 
-        initAnnees();
-        afficher();
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
     });
 }
 
-// ➕ AJOUT
-document.getElementById("add").onclick = function() {
-    let date = prompt("Date JJ-MM-AAAA");
-    let titre = prompt("Titre");
+// INIT CALENDAR
+document.addEventListener('DOMContentLoaded', function() {
 
-    if (!date || !titre) return;
+    let calendarEl = document.getElementById('calendar');
 
-    db.collection("events").add({date, titre}).then(() => charger());
-};
+    calendar = new FullCalendar.Calendar(calendarEl, {
 
-// ✏️ MODIFIER
-function modifier(id, oldDate, oldTitre) {
+        initialView: 'dayGridMonth',
 
-    let newDate = prompt("Nouvelle date", oldDate);
-    let newTitre = prompt("Nouveau titre", oldTitre);
+        locale: 'fr',
 
-    if (!newDate || !newTitre) return;
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ''
+        },
 
-    db.collection("events").doc(id).update({
-        date: newDate,
-        titre: newTitre
-    }).then(() => charger());
-}
+        dateClick: function(info) {
+            let titre = prompt("Titre de l'événement");
 
-// 🗑️ SUPPRIMER
-function supprimer(id) {
-    if (!confirm("Supprimer ?")) return;
+            if (!titre) return;
 
-    db.collection("events").doc(id).delete().then(() => charger());
-}
+            let date = info.dateStr.split("-").reverse().join("-");
 
-// 📅 ANNEES
-function initAnnees() {
-    let select = document.getElementById("annee");
-    select.innerHTML = "";
+            db.collection("events").add({
+                date: date,
+                titre: titre
+            }).then(() => chargerEvents());
+        },
 
-    let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
+        eventClick: function(info) {
 
-    if (annees.length === 0) return;
-
-    annees.sort();
-
-    annees.forEach(a => {
-        let opt = document.createElement("option");
-        opt.value = a;
-        opt.textContent = a;
-        select.appendChild(opt);
-    });
-
-    select.value = annees[annees.length - 1];
-    select.onchange = afficher;
-}
-
-// 📋 AFFICHAGE
-function afficher() {
-
-    let annee = document.getElementById("annee").value;
-
-    let mois = [
-        "janvier","fevrier","mars","avril","mai","juin",
-        "juillet","aout","septembre","octobre","novembre","decembre"
-    ];
-
-    let container = document.getElementById("agenda");
-    container.innerHTML = "";
-
-    mois.forEach((nom, i) => {
-
-        let div = document.createElement("div");
-        div.className = "month";
-
-        let html = "<h3>" + nom + "</h3>";
-
-        let evs = events
-        .filter(e => {
-            let p = e.date.split("-");
-            return p[2] === annee && parseInt(p[1]) === i+1;
-        })
-        .sort((a,b) => a.date.localeCompare(b.date));
-
-        if (evs.length === 0) {
-            html += "<i>Aucun événement</i>";
+            if (confirm("Supprimer cet événement ?")) {
+                db.collection("events").doc(info.event.id).delete()
+                .then(() => chargerEvents());
+            }
         }
 
-        evs.forEach(e => {
-            html += `
-            <div class="event">
-                <span><span class="date">${e.date}</span> - ${e.titre}</span>
-                <span>
-                    <button class="edit" onclick="modifier('${e.id}','${e.date}','${e.titre}')">✏️</button>
-                    <button class="delete" onclick="supprimer('${e.id}')">🗑️</button>
-                </span>
-            </div>
-            `;
-        });
-
-        div.innerHTML = html;
-        container.appendChild(div);
     });
-}
 
-// INIT
-charger();
+    calendar.render();
+    chargerEvents();
+});
 
 </script>
 
