@@ -35,7 +35,7 @@ header img {
     border-radius:8px;
 }
 
-/* 🪟 POPUP */
+/* 🔥 POPUP FIX */
 .modal {
     display:none;
     position:fixed;
@@ -44,6 +44,7 @@ header img {
     background:rgba(0,0,0,0.5);
     justify-content:center;
     align-items:center;
+    z-index:9999;
 }
 
 .modal-content {
@@ -51,6 +52,7 @@ header img {
     padding:20px;
     border-radius:8px;
     width:300px;
+    z-index:10000;
 }
 
 .modal input, .modal select {
@@ -81,13 +83,12 @@ Filtrer :
 
 <div id="calendar"></div>
 
-<!-- 🪟 POPUP -->
+<!-- POPUP -->
 <div class="modal" id="modal">
     <div class="modal-content">
         <h3>Événement</h3>
 
         <input type="text" id="titre" placeholder="Titre">
-
         <input type="time" id="heure" value="18:00">
 
         <select id="type">
@@ -176,6 +177,7 @@ function afficherEvents() {
 
 // 🪟 ouvrir popup
 function openModal(date, event=null) {
+
     document.getElementById("modal").style.display = "flex";
 
     selectedDate = date;
@@ -234,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         initialView: 'dayGridMonth',
 
-        // 🔥 mois actuel automatique
+        // 🔥 mois actuel
         initialDate: new Date(),
 
         locale: 'fr',
