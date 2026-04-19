@@ -1,192 +1,68 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Agenda ASCM</title>
-
-<style>
-body { font-family: Arial; margin:0; background:#f5f5f5; }
-
-header {
-    background:#e30613;
-    color:white;
-    text-align:center;
-    padding:20px;
-}
-
-header img {
-    width:80px;
-    display:block;
-    margin:0 auto 10px;
-}
-
-.container { padding:20px; }
-
-button, select {
-    padding:8px;
-    margin:5px;
-    border:none;
-    border-radius:4px;
-    cursor:pointer;
-}
-
-.month {
-    background:white;
-    margin-bottom:15px;
-    padding:10px;
-    border-radius:6px;
-}
-</style>
+<title>Test Firebase</title>
 </head>
 
 <body>
 
-<header>
-<img src="logo.png">
-<h1>Agenda ASCM</h1>
-<select id="annee"></select>
-</header>
+<h1>Test Firebase</h1>
 
-<div class="container">
+<button onclick="testWrite()">➕ Test écriture</button>
+<button onclick="testRead()">📖 Test lecture</button>
 
-<button id="add">➕ Ajouter</button>
-<button onclick="window.print()">🖨️ Export PDF</button>
-
-<div id="agenda"></div>
-
-</div>
-
-<!-- Firebase simple -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
 <script>
 
+// CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
   projectId: "agenda-ascm"
 };
 
+// INIT
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let events = [];
+console.log("Firebase lancé");
 
-// 🔄 CHARGER
-function charger() {
-    events = [];
+// 🔥 TEST ÉCRITURE
+function testWrite() {
+    db.collection("events").add({
+        date: "01-01-2026",
+        titre: "Test Firebase"
+    })
+    .then(() => {
+        alert("✅ Écriture OK");
+        console.log("Ajout réussi");
+    })
+    .catch(err => {
+        alert("❌ Erreur écriture");
+        console.error(err);
+    });
+}
 
-    db.collection("events").get().then(snapshot => {
+// 🔥 TEST LECTURE
+function testRead() {
+    db.collection("events").get()
+    .then(snapshot => {
+        console.log("Nombre docs :", snapshot.size);
 
         snapshot.forEach(doc => {
-            let e = doc.data();
-            e.id = doc.id;
-            events.push(e);
+            console.log(doc.data());
         });
 
-        console.log("Events :", events);
-
-        initAnnees();
-
-        // 🔥 sélectionner automatiquement dernière année
-        let select = document.getElementById("annee");
-        if (select.options.length > 0) {
-            select.selectedIndex = select.options.length - 1;
-        }
-
-        afficher();
+        alert("📖 Lecture OK (regarde la console)");
+    })
+    .catch(err => {
+        alert("❌ Erreur lecture");
+        console.error(err);
     });
 }
-
-// ➕ AJOUT
-document.getElementById("add").onclick = function() {
-
-    let date = prompt("Date JJ-MM-AAAA");
-    let titre = prompt("Titre");
-
-    if (!date || !titre) return;
-
-    db.collection("events").add({date, titre}).then(() => {
-        charger();
-    });
-};
-
-// 🗑️ SUPPRIMER
-function supprimer(id) {
-    db.collection("events").doc(id).delete().then(() => {
-        charger();
-    });
-}
-
-// 📅 ANNEES
-function initAnnees() {
-    let select = document.getElementById("annee");
-    select.innerHTML = "";
-
-    let annees = [...new Set(events.map(e => e.date.split("-")[2]))];
-
-    if (annees.length === 0) return;
-
-    annees.sort();
-
-    annees.forEach(a => {
-        let opt = document.createElement("option");
-        opt.value = a;
-        opt.textContent = a;
-        select.appendChild(opt);
-    });
-
-    select.onchange = afficher;
-}
-
-// 📋 AFFICHAGE
-function afficher() {
-
-    let annee = document.getElementById("annee").value;
-
-    let mois = [
-        "janvier","fevrier","mars","avril","mai","juin",
-        "juillet","aout","septembre","octobre","novembre","decembre"
-    ];
-
-    let container = document.getElementById("agenda");
-    container.innerHTML = "";
-
-    mois.forEach((nom, i) => {
-
-        let div = document.createElement("div");
-        div.className = "month";
-
-        let html = "<h3>" + nom + "</h3>";
-
-        let evs = events.filter(e => {
-            if (!e.date) return false;
-
-            let p = e.date.split("-");
-            if (p.length !== 3) return false;
-
-            return p[2] === annee && parseInt(p[1]) === i+1;
-        });
-
-        if (evs.length === 0) {
-            html += "<i>Aucun événement</i>";
-        }
-
-        evs.forEach(e => {
-            html += `
-            ${e.date} - ${e.titre}
-            <button onclick="supprimer('${e.id}')">🗑️</button><br>
-            `;
-        });
-
-        div.innerHTML = html;
-        container.appendChild(div);
-    });
-}
-
-// INIT
-charger();
 
 </script>
 
