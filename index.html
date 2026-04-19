@@ -27,6 +27,11 @@ header img {
     margin:10px;
 }
 
+button, select {
+    padding:6px 10px;
+    margin:5px;
+}
+
 #calendar {
     max-width:1000px;
     margin:20px auto;
@@ -35,7 +40,7 @@ header img {
     border-radius:8px;
 }
 
-/* 🔥 POPUP FIX */
+/* POPUP */
 .modal {
     display:none;
     position:fixed;
@@ -52,7 +57,6 @@ header img {
     padding:20px;
     border-radius:8px;
     width:300px;
-    z-index:10000;
 }
 
 .modal input, .modal select {
@@ -72,6 +76,11 @@ header img {
 </header>
 
 <div class="controls">
+
+<button onclick="openModal(new Date().toISOString().split('T')[0])">
+➕ Créer un événement
+</button>
+
 Filtrer :
 <select id="filtre">
     <option value="all">Tout</option>
@@ -79,6 +88,7 @@ Filtrer :
     <option value="match">Matchs</option>
     <option value="evenement">Événements</option>
 </select>
+
 </div>
 
 <div id="calendar"></div>
@@ -86,10 +96,16 @@ Filtrer :
 <!-- POPUP -->
 <div class="modal" id="modal">
     <div class="modal-content">
+
         <h3>Événement</h3>
 
         <input type="text" id="titre" placeholder="Titre">
-        <input type="time" id="heure" value="18:00">
+
+        <label>Début</label>
+        <input type="time" id="heureDebut" value="18:00">
+
+        <label>Fin</label>
+        <input type="time" id="heureFin" value="19:00">
 
         <select id="type">
             <option value="reunion">Réunion</option>
@@ -99,6 +115,7 @@ Filtrer :
 
         <button onclick="saveEvent()">💾 Enregistrer</button>
         <button onclick="closeModal()">❌ Annuler</button>
+
     </div>
 </div>
 
@@ -125,20 +142,20 @@ let selectedDate = null;
 let selectedId = null;
 let allEvents = [];
 
-// 🎨 couleurs
+// couleurs
 function getColor(type) {
     if (type === "reunion") return "#28a745";
     if (type === "match") return "#007bff";
     if (type === "evenement") return "#fd7e14";
 }
 
-// 🔄 format
+// format
 function toISO(date, heure) {
     let p = date.split("-");
     return `${p[2]}-${p[1]}-${p[0]}T${heure}`;
 }
 
-// 🔄 charger
+// charger
 function chargerEvents() {
 
     db.collection("events").get().then(snapshot => {
@@ -151,7 +168,8 @@ function chargerEvents() {
             allEvents.push({
                 id: doc.id,
                 title: e.titre,
-                start: toISO(e.date, e.heure || "00:00"),
+                start: toISO(e.date, e.heureDebut || "00:00"),
+                end: toISO(e.date, e.heureFin || "01:00"),
                 type: e.type,
                 backgroundColor: getColor(e.type)
             });
@@ -161,7 +179,7 @@ function chargerEvents() {
     });
 }
 
-// 🔍 filtre
+// filtre
 function afficherEvents() {
 
     let filtre = document.getElementById("filtre").value;
@@ -175,7 +193,7 @@ function afficherEvents() {
     calendar.addEventSource(events);
 }
 
-// 🪟 ouvrir popup
+// popup
 function openModal(date, event=null) {
 
     document.getElementById("modal").style.display = "flex";
@@ -184,20 +202,21 @@ function openModal(date, event=null) {
     selectedId = event ? event.id : null;
 
     document.getElementById("titre").value = event ? event.title : "";
-    document.getElementById("heure").value = "18:00";
+    document.getElementById("heureDebut").value = "18:00";
+    document.getElementById("heureFin").value = "19:00";
     document.getElementById("type").value = event ? event.extendedProps.type : "reunion";
 }
 
-// ❌ fermer
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
-// 💾 sauvegarder
+// sauvegarde
 function saveEvent() {
 
     let titre = document.getElementById("titre").value;
-    let heure = document.getElementById("heure").value;
+    let heureDebut = document.getElementById("heureDebut").value;
+    let heureFin = document.getElementById("heureFin").value;
     let type = document.getElementById("type").value;
 
     if (!titre) return;
@@ -207,9 +226,10 @@ function saveEvent() {
     if (selectedId) {
         db.collection("events").doc(selectedId).update({
             date: dateFR,
-            heure: heure,
-            titre: titre,
-            type: type
+            heureDebut,
+            heureFin,
+            titre,
+            type
         }).then(() => {
             closeModal();
             chargerEvents();
@@ -217,9 +237,10 @@ function saveEvent() {
     } else {
         db.collection("events").add({
             date: dateFR,
-            heure: heure,
-            titre: titre,
-            type: type
+            heureDebut,
+            heureFin,
+            titre,
+            type
         }).then(() => {
             closeModal();
             chargerEvents();
@@ -227,19 +248,24 @@ function saveEvent() {
     }
 }
 
-// INIT
+// init
 document.addEventListener('DOMContentLoaded', function() {
 
     let calendarEl = document.getElementById('calendar');
 
     calendar = new FullCalendar.Calendar(calendarEl, {
 
-        initialView: 'dayGridMonth',
-
-        // 🔥 mois actuel
-        initialDate: new Date(),
+        initialView: 'multiMonthYear',
 
         locale: 'fr',
+        firstDay: 1,
+        initialDate: new Date(),
+
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,multiMonthYear'
+        },
 
         dateClick: function(info) {
             openModal(info.dateStr);
