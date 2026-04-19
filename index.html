@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda ASCM</title>
 
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
-
 <style>
-body { font-family: Arial; margin:0; background:#f5f5f5; }
+body {
+    font-family: Arial;
+    margin:0;
+    background:#f5f5f5;
+}
 
 header {
     background:#e30613;
@@ -38,15 +40,31 @@ button, select, input {
     max-width:300px;
 }
 
-#calendar {
-    max-width:1000px;
-    margin:10px auto;
-    background:white;
-    padding:10px;
-    border-radius:8px;
+#list {
+    max-width:600px;
+    margin:20px auto;
 }
 
-/* POPUP */
+.event {
+    background:white;
+    padding:15px;
+    margin-bottom:10px;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.date {
+    font-weight:bold;
+}
+
+/* couleurs */
+.reunion { border-left:5px solid #28a745; }
+.match { border-left:5px solid #007bff; }
+.evenement { border-left:5px solid #fd7e14; }
+
+/* popup */
 .modal {
     display:none;
     position:fixed;
@@ -54,7 +72,6 @@ button, select, input {
     width:100%; height:100%;
     background:white;
     z-index:9999;
-    overflow:auto;
 }
 
 .modal-content {
@@ -101,7 +118,7 @@ button, select, input {
 
 </div>
 
-<div id="calendar"></div>
+<div id="list"></div>
 
 <!-- POPUP -->
 <div class="modal" id="modal">
@@ -111,12 +128,6 @@ button, select, input {
 
         <input type="date" id="dateEvent">
         <input type="text" id="titre" placeholder="Titre">
-
-        <label>Début</label>
-        <input type="time" id="heureDebut">
-
-        <label>Fin</label>
-        <input type="time" id="heureFin">
 
         <select id="type">
             <option value="reunion">Réunion</option>
@@ -140,9 +151,6 @@ button, select, input {
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
-<!-- FullCalendar -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-
 <script>
 
 const firebaseConfig = {
@@ -154,22 +162,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let calendar;
 let selectedId = null;
 let allEvents = [];
-
-// 🎨 couleurs
-function getColor(type) {
-    if (type === "reunion") return "#28a745";
-    if (type === "match") return "#007bff";
-    if (type === "evenement") return "#fd7e14";
-}
-
-// 🔄 format
-function toISO(date, heure) {
-    let p = date.split("-");
-    return `${p[2]}-${p[1]}-${p[0]}T${heure}`;
-}
 
 // 🔄 charger
 function chargerEvents() {
@@ -180,80 +174,89 @@ function chargerEvents() {
 
         snapshot.forEach(doc => {
             let e = doc.data();
-
-            allEvents.push({
-                id: doc.id,
-                title: e.titre,
-                start: toISO(e.date, e.heureDebut || "00:00"),
-                end: toISO(e.date, e.heureFin || "01:00"),
-                type: e.type,
-                backgroundColor: getColor(e.type)
-            });
+            e.id = doc.id;
+            allEvents.push(e);
         });
 
         afficherEvents();
     });
 }
 
-// 🔍 filtre
+// 🔍 afficher
 function afficherEvents() {
 
-    let f = document.getElementById("filtre").value;
+    let list = document.getElementById("list");
+    list.innerHTML = "";
 
-    let events = allEvents.filter(e => {
-        if (f === "all") return true;
-        return e.type === f;
+    let filtre = document.getElementById("filtre").value;
+
+    let events = allEvents
+        .filter(e => filtre === "all" || e.type === filtre)
+        .sort((a,b) => {
+            let da = a.date.split("-").reverse().join("");
+            let db = b.date.split("-").reverse().join("");
+            return da - db;
+        });
+
+    events.forEach(e => {
+
+        let div = document.createElement("div");
+        div.className = "event " + e.type;
+
+        div.innerHTML = `
+            <div>
+                <div class="date">${e.date}</div>
+                <div>${e.titre}</div>
+            </div>
+            <button onclick="editEvent('${e.id}')">✏️</button>
+        `;
+
+        list.appendChild(div);
     });
-
-    calendar.removeAllEvents();
-    calendar.addEventSource(events);
 }
 
 // 🪟 popup
-function openModal(date=null, event=null) {
+function openModal(event=null) {
 
-    document.getElementById("modal").style.display = "block";
+    modal.style.display = "block";
 
     if (event) {
         selectedId = event.id;
-        document.getElementById("deleteBtn").style.display = "block";
+        deleteBtn.style.display = "block";
 
-        let d = new Date(event.start);
-
-        document.getElementById("dateEvent").value = d.toISOString().split("T")[0];
-        document.getElementById("titre").value = event.title;
-        document.getElementById("type").value = event.extendedProps.type;
+        dateEvent.value = event.date.split("-").reverse().join("-");
+        titre.value = event.titre;
+        type.value = event.type;
 
     } else {
         selectedId = null;
-        document.getElementById("deleteBtn").style.display = "none";
+        deleteBtn.style.display = "none";
 
-        document.getElementById("dateEvent").value = date || new Date().toISOString().split("T")[0];
-        document.getElementById("titre").value = "";
+        dateEvent.value = new Date().toISOString().split("T")[0];
+        titre.value = "";
     }
-
-    document.getElementById("heureDebut").value = "18:00";
-    document.getElementById("heureFin").value = "19:00";
 }
 
 function closeModal() {
-    document.getElementById("modal").style.display = "none";
+    modal.style.display = "none";
+}
+
+// ✏️ edit
+function editEvent(id) {
+    let e = allEvents.find(ev => ev.id === id);
+    openModal(e);
 }
 
 // 💾 save
 function saveEvent() {
 
-    let dateISO = document.getElementById("dateEvent").value;
-    if (!dateISO) return;
-
+    let dateISO = dateEvent.value;
     let dateFR = dateISO.split("-").reverse().join("-");
 
     let data = {
         date: dateFR,
-        titre: document.getElementById("titre").value,
-        heureDebut: document.getElementById("heureDebut").value,
-        heureFin: document.getElementById("heureFin").value,
-        type: document.getElementById("type").value
+        titre: titre.value,
+        type: type.value
     };
 
     if (selectedId) {
@@ -277,33 +280,8 @@ function deleteEvent() {
 }
 
 // INIT
-document.addEventListener('DOMContentLoaded', function() {
-
-    let calendarEl = document.getElementById('calendar');
-
-    calendar = new FullCalendar.Calendar(calendarEl, {
-
-        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
-
-        locale: 'fr',
-        firstDay: 1,
-
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,listWeek'
-        },
-
-        dateClick: info => openModal(info.dateStr),
-        eventClick: info => openModal(info.event.startStr, info.event)
-
-    });
-
-    calendar.render();
-    chargerEvents();
-
-    document.getElementById("filtre").addEventListener("change", afficherEvents);
-});
+chargerEvents();
+document.getElementById("filtre").addEventListener("change", afficherEvents);
 
 </script>
 
