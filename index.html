@@ -165,6 +165,21 @@ const db = firebase.firestore();
 let selectedId = null;
 let allEvents = [];
 
+// 🔒 CODE ADMIN
+const ADMIN_CODE = "0208";
+let isAdmin = false;
+
+function checkCode() {
+    if (isAdmin) return true;
+
+    let code = prompt("Code administrateur :");
+    if (code === ADMIN_CODE) {
+        isAdmin = true;
+        return true;
+    }
+    return false;
+}
+
 // 🔄 charger
 function chargerEvents() {
 
@@ -175,7 +190,7 @@ function chargerEvents() {
         snapshot.forEach(doc => {
             let e = doc.data();
 
-            // 🔥 COMPATIBILITÉ ANCIEN FORMAT
+            // compat ancien format
             if (!e.dateDebut) {
                 e.dateDebut = e.date;
                 e.dateFin = e.date;
@@ -189,7 +204,7 @@ function chargerEvents() {
     });
 }
 
-// 🔍 afficher par mois
+// 🔍 afficher
 function afficherEvents() {
 
     let list = document.getElementById("list");
@@ -251,6 +266,11 @@ function formatMonth(m) {
 // 🪟 popup
 function openModal(event=null) {
 
+    if (!checkCode()) {
+        alert("Accès refusé");
+        return;
+    }
+
     document.getElementById("modal").style.display = "block";
 
     if (event) {
@@ -287,6 +307,8 @@ function editEvent(id) {
 // 💾 save
 function saveEvent() {
 
+    if (!checkCode()) return;
+
     let d1 = document.getElementById("dateDebut").value;
     let d2 = document.getElementById("dateFin").value;
 
@@ -310,6 +332,8 @@ function saveEvent() {
 
 // 🗑️ delete
 function deleteEvent() {
+
+    if (!checkCode()) return;
 
     if (!selectedId) return;
 
