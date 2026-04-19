@@ -6,16 +6,43 @@
 
 <style>
 body { font-family: Arial; margin:0; background:#f5f5f5; }
-header { background:#e30613; color:white; text-align:center; padding:20px; }
+
+header {
+    background:#e30613;
+    color:white;
+    text-align:center;
+    padding:20px;
+}
+
+header img {
+    width:80px;
+    display:block;
+    margin:0 auto 10px;
+}
+
 .container { padding:20px; }
-button, select { padding:8px; margin:5px; }
-.month { background:white; margin-bottom:15px; padding:10px; }
+
+button, select {
+    padding:8px;
+    margin:5px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+.month {
+    background:white;
+    margin-bottom:15px;
+    padding:10px;
+    border-radius:6px;
+}
 </style>
 </head>
 
 <body>
 
 <header>
+<img src="logo.png">
 <h1>Agenda ASCM</h1>
 <select id="annee"></select>
 </header>
@@ -23,29 +50,24 @@ button, select { padding:8px; margin:5px; }
 <div class="container">
 
 <button id="add">➕ Ajouter</button>
-<button onclick="window.print()">🖨️ PDF</button>
+<button onclick="window.print()">🖨️ Export PDF</button>
 
 <div id="agenda"></div>
 
 </div>
 
-<!-- 🔥 FIREBASE VERSION SIMPLE -->
+<!-- Firebase simple -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
 <script>
 
-alert("JS OK");
-console.log("Script lancé");
-
-// 🔑 CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBgutofgSF2iOaZDfeADtEw6Djt8oEQLGA",
   authDomain: "agenda-ascm.firebaseapp.com",
   projectId: "agenda-ascm"
 };
 
-// INIT
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
@@ -63,13 +85,23 @@ function charger() {
             events.push(e);
         });
 
+        console.log("Events :", events);
+
         initAnnees();
+
+        // 🔥 sélectionner automatiquement dernière année
+        let select = document.getElementById("annee");
+        if (select.options.length > 0) {
+            select.selectedIndex = select.options.length - 1;
+        }
+
         afficher();
     });
 }
 
 // ➕ AJOUT
 document.getElementById("add").onclick = function() {
+
     let date = prompt("Date JJ-MM-AAAA");
     let titre = prompt("Titre");
 
@@ -105,8 +137,6 @@ function initAnnees() {
         select.appendChild(opt);
     });
 
-    select.value = annees[annees.length - 1];
-
     select.onchange = afficher;
 }
 
@@ -131,7 +161,11 @@ function afficher() {
         let html = "<h3>" + nom + "</h3>";
 
         let evs = events.filter(e => {
+            if (!e.date) return false;
+
             let p = e.date.split("-");
+            if (p.length !== 3) return false;
+
             return p[2] === annee && parseInt(p[1]) === i+1;
         });
 
