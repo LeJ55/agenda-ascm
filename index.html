@@ -6,11 +6,7 @@
 <title>Agenda ASCM</title>
 
 <style>
-body {
-    font-family: Arial;
-    margin:0;
-    background:#f5f5f5;
-}
+body { font-family: Arial; margin:0; background:#f5f5f5; }
 
 header {
     background:#e30613;
@@ -45,21 +41,22 @@ button, select, input {
     margin:20px auto;
 }
 
+.month {
+    margin-top:20px;
+    font-size:20px;
+    font-weight:bold;
+}
+
 .event {
     background:white;
     padding:15px;
-    margin-bottom:10px;
+    margin:10px 0;
     border-radius:8px;
     display:flex;
     justify-content:space-between;
     align-items:center;
 }
 
-.date {
-    font-weight:bold;
-}
-
-/* couleurs */
 .reunion { border-left:5px solid #28a745; }
 .match { border-left:5px solid #007bff; }
 .evenement { border-left:5px solid #fd7e14; }
@@ -74,9 +71,7 @@ button, select, input {
     z-index:9999;
 }
 
-.modal-content {
-    padding:20px;
-}
+.modal-content { padding:20px; }
 
 @media (min-width:768px) {
     .modal {
@@ -126,7 +121,12 @@ button, select, input {
 
         <h3>Événement</h3>
 
-        <input type="date" id="dateEvent">
+        <label>Début</label>
+        <input type="date" id="dateDebut">
+
+        <label>Fin</label>
+        <input type="date" id="dateFin">
+
         <input type="text" id="titre" placeholder="Titre">
 
         <select id="type">
@@ -182,7 +182,7 @@ function chargerEvents() {
     });
 }
 
-// 🔍 afficher
+// 🔍 afficher par mois
 function afficherEvents() {
 
     let list = document.getElementById("list");
@@ -193,19 +193,37 @@ function afficherEvents() {
     let events = allEvents
         .filter(e => filtre === "all" || e.type === filtre)
         .sort((a,b) => {
-            let da = a.date.split("-").reverse().join("");
-            let db = b.date.split("-").reverse().join("");
+            let da = a.dateDebut.split("-").reverse().join("");
+            let db = b.dateDebut.split("-").reverse().join("");
             return da - db;
         });
 
+    let currentMonth = "";
+
     events.forEach(e => {
+
+        let mois = e.dateDebut.split("-")[1] + "-" + e.dateDebut.split("-")[2];
+
+        if (mois !== currentMonth) {
+            currentMonth = mois;
+
+            let m = document.createElement("div");
+            m.className = "month";
+            m.innerText = formatMonth(mois);
+            list.appendChild(m);
+        }
 
         let div = document.createElement("div");
         div.className = "event " + e.type;
 
+        let dateTxt = e.dateDebut;
+        if (e.dateFin && e.dateFin !== e.dateDebut) {
+            dateTxt += " → " + e.dateFin;
+        }
+
         div.innerHTML = `
             <div>
-                <div class="date">${e.date}</div>
+                <div><strong>${dateTxt}</strong></div>
                 <div>${e.titre}</div>
             </div>
             <button onclick="editEvent('${e.id}')">✏️</button>
@@ -213,6 +231,13 @@ function afficherEvents() {
 
         list.appendChild(div);
     });
+}
+
+// 📅 format mois
+function formatMonth(m) {
+    let [mois, an] = m.split("-");
+    const noms = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+    return noms[parseInt(mois)-1] + " " + an;
 }
 
 // 🪟 popup
@@ -224,7 +249,8 @@ function openModal(event=null) {
         selectedId = event.id;
         deleteBtn.style.display = "block";
 
-        dateEvent.value = event.date.split("-").reverse().join("-");
+        dateDebut.value = event.dateDebut.split("-").reverse().join("-");
+        dateFin.value = event.dateFin.split("-").reverse().join("-");
         titre.value = event.titre;
         type.value = event.type;
 
@@ -232,7 +258,10 @@ function openModal(event=null) {
         selectedId = null;
         deleteBtn.style.display = "none";
 
-        dateEvent.value = new Date().toISOString().split("T")[0];
+        let today = new Date().toISOString().split("T")[0];
+
+        dateDebut.value = today;
+        dateFin.value = today;
         titre.value = "";
     }
 }
@@ -250,11 +279,12 @@ function editEvent(id) {
 // 💾 save
 function saveEvent() {
 
-    let dateISO = dateEvent.value;
-    let dateFR = dateISO.split("-").reverse().join("-");
+    let d1 = dateDebut.value.split("-").reverse().join("-");
+    let d2 = dateFin.value.split("-").reverse().join("-");
 
     let data = {
-        date: dateFR,
+        dateDebut: d1,
+        dateFin: d2,
         titre: titre.value,
         type: type.value
     };
