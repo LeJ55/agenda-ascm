@@ -22,18 +22,18 @@ header img { width:60px; }
     padding:10px;
 }
 
-button, select, input {
+button, select, input, textarea {
     padding:10px;
     margin:5px;
     font-size:16px;
     border-radius:6px;
+    width:90%;
+    max-width:300px;
 }
 
 .create-btn {
     background:#e30613;
     color:white;
-    width:90%;
-    max-width:300px;
 }
 
 #list {
@@ -52,14 +52,17 @@ button, select, input {
     padding:15px;
     margin:10px 0;
     border-radius:8px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
 }
 
 .reunion { border-left:5px solid #28a745; }
 .match { border-left:5px solid #007bff; }
 .evenement { border-left:5px solid #fd7e14; }
+
+.event-top {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
 
 /* popup */
 .modal {
@@ -69,9 +72,14 @@ button, select, input {
     width:100%; height:100%;
     background:white;
     z-index:9999;
+    overflow:auto;
 }
 
 .modal-content { padding:20px; }
+
+textarea {
+    height:80px;
+}
 
 @media (min-width:768px) {
     .modal {
@@ -129,6 +137,10 @@ button, select, input {
 
         <input type="text" id="titre" placeholder="Titre">
 
+        <input type="text" id="lieu" placeholder="Lieu (facultatif)">
+
+        <textarea id="description" placeholder="Description (facultatif)"></textarea>
+
         <select id="type">
             <option value="reunion">Réunion</option>
             <option value="match">Match</option>
@@ -171,7 +183,6 @@ let isAdmin = false;
 
 function checkCode() {
     if (isAdmin) return true;
-
     let code = prompt("Code administrateur :");
     if (code === ADMIN_CODE) {
         isAdmin = true;
@@ -190,7 +201,6 @@ function chargerEvents() {
         snapshot.forEach(doc => {
             let e = doc.data();
 
-            // compat ancien format
             if (!e.dateDebut) {
                 e.dateDebut = e.date;
                 e.dateFin = e.date;
@@ -236,27 +246,31 @@ function afficherEvents() {
             list.appendChild(m);
         }
 
-        let div = document.createElement("div");
-        div.className = "event " + e.type;
-
         let dateTxt = e.dateDebut;
         if (e.dateFin && e.dateFin !== e.dateDebut) {
             dateTxt += " → " + e.dateFin;
         }
 
+        let div = document.createElement("div");
+        div.className = "event " + e.type;
+
         div.innerHTML = `
-            <div>
-                <div><strong>${dateTxt}</strong></div>
-                <div>${e.titre}</div>
+            <div class="event-top">
+                <div>
+                    <strong>${dateTxt}</strong><br>
+                    ${e.titre}
+                    ${e.lieu ? `<br>📍 ${e.lieu}` : ""}
+                    ${e.description ? `<br><small>${e.description}</small>` : ""}
+                </div>
+                <button onclick="editEvent('${e.id}')">✏️</button>
             </div>
-            <button onclick="editEvent('${e.id}')">✏️</button>
         `;
 
         list.appendChild(div);
     });
 }
 
-// 📅 format mois
+// 📅 mois
 function formatMonth(m) {
     let [mois, an] = m.split("-");
     const noms = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
@@ -271,31 +285,35 @@ function openModal(event=null) {
         return;
     }
 
-    document.getElementById("modal").style.display = "block";
+    modal.style.display = "block";
 
     if (event) {
         selectedId = event.id;
-        document.getElementById("deleteBtn").style.display = "block";
+        deleteBtn.style.display = "block";
 
-        document.getElementById("dateDebut").value = event.dateDebut.split("-").reverse().join("-");
-        document.getElementById("dateFin").value = (event.dateFin || event.dateDebut).split("-").reverse().join("-");
-        document.getElementById("titre").value = event.titre;
-        document.getElementById("type").value = event.type;
+        dateDebut.value = event.dateDebut.split("-").reverse().join("-");
+        dateFin.value = (event.dateFin || event.dateDebut).split("-").reverse().join("-");
+        titre.value = event.titre;
+        type.value = event.type;
+        lieu.value = event.lieu || "";
+        description.value = event.description || "";
 
     } else {
         selectedId = null;
-        document.getElementById("deleteBtn").style.display = "none";
+        deleteBtn.style.display = "none";
 
         let today = new Date().toISOString().split("T")[0];
 
-        document.getElementById("dateDebut").value = today;
-        document.getElementById("dateFin").value = today;
-        document.getElementById("titre").value = "";
+        dateDebut.value = today;
+        dateFin.value = today;
+        titre.value = "";
+        lieu.value = "";
+        description.value = "";
     }
 }
 
 function closeModal() {
-    document.getElementById("modal").style.display = "none";
+    modal.style.display = "none";
 }
 
 // ✏️ edit
@@ -309,16 +327,16 @@ function saveEvent() {
 
     if (!checkCode()) return;
 
-    let d1 = document.getElementById("dateDebut").value;
-    let d2 = document.getElementById("dateFin").value;
-
-    if (!d1) return;
+    let d1 = dateDebut.value;
+    let d2 = dateFin.value;
 
     let data = {
         dateDebut: d1.split("-").reverse().join("-"),
         dateFin: d2.split("-").reverse().join("-"),
-        titre: document.getElementById("titre").value,
-        type: document.getElementById("type").value
+        titre: titre.value,
+        type: type.value,
+        lieu: lieu.value,
+        description: description.value
     };
 
     if (selectedId) {
@@ -345,7 +363,7 @@ function deleteEvent() {
 
 // INIT
 chargerEvents();
-document.getElementById("filtre").addEventListener("change", afficherEvents);
+filtre.addEventListener("change", afficherEvents);
 
 </script>
 
